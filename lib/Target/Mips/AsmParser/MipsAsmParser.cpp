@@ -2916,7 +2916,7 @@ bool MipsAsmParser::loadAndAddSymbolAddress(const MCExpr *SymExpr,
     // The case where the result register is $25 is somewhat special. If the
     // symbol in the final relocation is external and not modified with a
     // constant then we must use R_MIPS_CALL16 instead of R_MIPS_GOT16.
-    if ((DstReg == Mips::T9 || DstReg == Mips::T9_64) && !UseSrcReg &&
+    if (DstReg == Mips::T9 && !UseSrcReg &&
         Res.getConstant() == 0 && !(Res.getSymA()->getSymbol().isInSection() ||
         Res.getSymA()->getSymbol().isTemporary() ||
         (Res.getSymA()->getSymbol().isELF() &&
@@ -2973,6 +2973,81 @@ bool MipsAsmParser::loadAndAddSymbolAddress(const MCExpr *SymExpr,
 
     if (UseSrcReg)
       TOut.emitRRR(Mips::ADDu, DstReg, TmpReg, SrcReg, IDLoc, STI);
+
+    return false;
+  }
+
+  if (inPicMode() && ABI.ArePtrs64bit() && isGP64bit()) {
+    MCValue Res;
+    if (!SymExpr->evaluateAsRelocatable(Res, nullptr, nullptr)) {
+      Error(IDLoc, "expected relocatable expression");
+      return true;
+    }
+    if (Res.getSymB() != nullptr) {
+      Error(IDLoc, "expected relocatable expression with only one symbol");
+      return true;
+    }
+
+    // The case where the result register is $25 is somewhat special. If the
+    // symbol in the final relocation is external and not modified with a
+    // constant then we must use R_MIPS_CALL16 instead of R_MIPS_GOT16.
+    if (DstReg == Mips::T9_64 && !UseSrcReg &&
+        Res.getConstant() == 0 && !Res.getSymA()->getSymbol().isInSection() &&
+        !Res.getSymA()->getSymbol().isTemporary()) {
+      const MCExpr *CallExpr =
+          MipsMCExpr::create(MipsMCExpr::MEK_GOT_CALL, SymExpr, getContext());
+      TOut.emitRRX(Mips::LD, DstReg, ABI.GetGlobalPtr(),
+                   MCOperand::createExpr(CallExpr), IDLoc, STI);
+      return false;
+    }
+
+    // The remaining cases are:
+    //   External GOT: ld $tmp, %got(symbol+offset)($gp)
+    //                >daddiu $tmp, $tmp, %lo(offset)
+    //                >daddiu $rd, $tmp, $rs
+    //   Local GOT:    ld $tmp, %got(symbol+offset)($gp)
+    //                 daddiu $tmp, $tmp, %lo(symbol+offset)($gp)
+    //                >daddiu $rd, $tmp, $rs
+    // The daddiu's marked with a '>' may be omitted if they are redundant. If
+    // this happens then the last instruction must use $rd as the result
+    // register.
+    //
+    // XXX: This is just copied from O32 above.  No idea if a single
+    // loExpr is sufficient for N64 as well?
+    const MipsMCExpr *GotExpr =
+        MipsMCExpr::create(MipsMCExpr::MEK_GOT, SymExpr, getContext());
+    const MCExpr *LoExpr = nullptr;
+    if (Res.getSymA()->getSymbol().isInSection() ||
+        Res.getSymA()->getSymbol().isTemporary())
+      LoExpr = MipsMCExpr::create(MipsMCExpr::MEK_LO, SymExpr, getContext());
+    else if (Res.getConstant() != 0) {
+      // External symbols fully resolve the symbol with just the %got(symbol)
+      // but we must still account for any offset to the symbol for expressions
+      // like symbol+8.
+      LoExpr = MCConstantExpr::create(Res.getConstant(), getContext());
+    }
+
+    unsigned TmpReg = DstReg;
+    if (UseSrcReg &&
+        getContext().getRegisterInfo()->isSuperOrSubRegisterEq(DstReg,
+                                                               SrcReg)) {
+      // If $rs is the same as $rd, we need to use AT.
+      // If it is not available we exit.
+      unsigned ATReg = getATReg(IDLoc);
+      if (!ATReg)
+        return true;
+      TmpReg = ATReg;
+    }
+
+    TOut.emitRRX(Mips::LD, TmpReg, ABI.GetGlobalPtr(),
+                 MCOperand::createExpr(GotExpr), IDLoc, STI);
+
+    if (LoExpr)
+      TOut.emitRRX(Mips::DADDiu, TmpReg, TmpReg, MCOperand::createExpr(LoExpr),
+                   IDLoc, STI);
+
+    if (UseSrcReg)
+      TOut.emitRRR(Mips::DADDu, DstReg, TmpReg, SrcReg, IDLoc, STI);
 
     return false;
   }
