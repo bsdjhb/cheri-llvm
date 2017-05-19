@@ -3017,13 +3017,11 @@ bool MipsAsmParser::loadAndAddSymbolAddress(const MCExpr *SymExpr,
     //
     // XXX: This is just copied from O32 above.  No idea if a single
     // loExpr is sufficient for N64 as well?
+    // XXX: Use GOT_DISP instead of GOT?
     const MipsMCExpr *GotExpr =
-        MipsMCExpr::create(MipsMCExpr::MEK_GOT, SymExpr, getContext());
+        MipsMCExpr::create(MipsMCExpr::MEK_GOT_DISP, SymExpr, getContext());
     const MCExpr *LoExpr = nullptr;
-    if (Res.getSymA()->getSymbol().isInSection() ||
-        Res.getSymA()->getSymbol().isTemporary())
-      LoExpr = MipsMCExpr::create(MipsMCExpr::MEK_LO, SymExpr, getContext());
-    else if (Res.getConstant() != 0) {
+    if (Res.getConstant() != 0) {
       // External symbols fully resolve the symbol with just the %got(symbol)
       // but we must still account for any offset to the symbol for expressions
       // like symbol+8.
