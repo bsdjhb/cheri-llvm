@@ -2898,6 +2898,7 @@ bool MipsAsmParser::loadAndAddSymbolAddress(const MCExpr *SymExpr,
                                             bool Is32BitSym, SMLoc IDLoc,
                                             MCStreamer &Out,
                                             const MCSubtargetInfo *STI) {
+  // FIXME: These expansions do not respect -mxgot.
   MipsTargetStreamer &TOut = getTargetStreamer();
   bool UseSrcReg = SrcReg != Mips::NoRegister;
   warnIfNoMacro(IDLoc);
@@ -2977,7 +2978,7 @@ bool MipsAsmParser::loadAndAddSymbolAddress(const MCExpr *SymExpr,
     return false;
   }
 
-  if (inPicMode() && ABI.ArePtrs64bit() && isGP64bit()) {
+  if (inPicMode() && ABI.ArePtrs64bit()) {
     MCValue Res;
     if (!SymExpr->evaluateAsRelocatable(Res, nullptr, nullptr)) {
       Error(IDLoc, "expected relocatable expression");
@@ -2990,7 +2991,7 @@ bool MipsAsmParser::loadAndAddSymbolAddress(const MCExpr *SymExpr,
 
     // The case where the result register is $25 is somewhat special. If the
     // symbol in the final relocation is external and not modified with a
-    // constant then we must use R_MIPS_CALL16 instead of R_MIPS_GOT16.
+    // constant then we must use R_MIPS_CALL16 instead of R_MIPS_GOT_DISP.
     if (DstReg == Mips::T9_64 && !UseSrcReg &&
         Res.getConstant() == 0 && !(Res.getSymA()->getSymbol().isInSection() ||
         Res.getSymA()->getSymbol().isTemporary() ||
@@ -3015,9 +3016,8 @@ bool MipsAsmParser::loadAndAddSymbolAddress(const MCExpr *SymExpr,
     // this happens then the last instruction must use $rd as the result
     // register.
     //
-    // XXX: This is just copied from O32 above.  No idea if a single
+    // FIXME: This is just copied from O32 above.  No idea if a single
     // loExpr is sufficient for N64 as well?
-    // XXX: Use GOT_DISP instead of GOT?
     const MipsMCExpr *GotExpr =
         MipsMCExpr::create(MipsMCExpr::MEK_GOT_DISP, SymExpr, getContext());
     const MCExpr *LoExpr = nullptr;
