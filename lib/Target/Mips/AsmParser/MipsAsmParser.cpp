@@ -3006,12 +3006,12 @@ bool MipsAsmParser::loadAndAddSymbolAddress(const MCExpr *SymExpr,
     }
 
     // The remaining cases are:
-    //   External GOT: ld $tmp, %got(symbol+offset)($gp)
+    //   External GOT: ld $tmp, %got_disp(symbol+offset)($gp)
     //                >daddiu $tmp, $tmp, %lo(offset)
-    //                >daddiu $rd, $tmp, $rs
-    //   Local GOT:    ld $tmp, %got(symbol+offset)($gp)
+    //                >daddu $rd, $tmp, $rs
+    //   Local GOT:    ld $tmp, %got_disp(symbol+offset)($gp)
     //                 daddiu $tmp, $tmp, %lo(symbol+offset)($gp)
-    //                >daddiu $rd, $tmp, $rs
+    //                >daddu $rd, $tmp, $rs
     // The daddiu's marked with a '>' may be omitted if they are redundant. If
     // this happens then the last instruction must use $rd as the result
     // register.
