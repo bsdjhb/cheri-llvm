@@ -3006,11 +3006,11 @@ bool MipsAsmParser::loadAndAddSymbolAddress(const MCExpr *SymExpr,
     }
 
     // The remaining cases are:
-    //   External GOT: ld $tmp, %got_disp(symbol+offset)($gp)
-    //                >daddiu $tmp, $tmp, %lo(offset)
+    //   External GOT: ld $tmp, %got_disp(symbol)($gp)
+    //                >daddiu $tmp, $tmp, offset
     //                >daddu $rd, $tmp, $rs
-    //   Local GOT:    ld $tmp, %got_disp(symbol+offset)($gp)
-    //                 daddiu $tmp, $tmp, %lo(symbol+offset)($gp)
+    //   Local GOT:    ld $tmp, %got_disp(symbol)($gp)
+    //                 daddiu $tmp, $tmp, offset($gp)
     //                >daddu $rd, $tmp, $rs
     // The daddiu's marked with a '>' may be omitted if they are redundant. If
     // this happens then the last instruction must use $rd as the result
@@ -3019,10 +3019,10 @@ bool MipsAsmParser::loadAndAddSymbolAddress(const MCExpr *SymExpr,
     // FIXME: This is just copied from O32 above.  No idea if a single
     // loExpr is sufficient for N64 as well?
     const MipsMCExpr *GotExpr =
-        MipsMCExpr::create(MipsMCExpr::MEK_GOT_DISP, SymExpr, getContext());
+        MipsMCExpr::create(MipsMCExpr::MEK_GOT_DISP, Res.getSymA(), getContext());
     const MCExpr *LoExpr = nullptr;
     if (Res.getConstant() != 0) {
-      // External symbols fully resolve the symbol with just the %got(symbol)
+      // External symbols fully resolve the symbol with just the %got_disp(symbol)
       // but we must still account for any offset to the symbol for expressions
       // like symbol+8.
       LoExpr = MCConstantExpr::create(Res.getConstant(), getContext());
