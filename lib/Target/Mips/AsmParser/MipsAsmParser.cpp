@@ -3006,26 +3006,27 @@ bool MipsAsmParser::loadAndAddSymbolAddress(const MCExpr *SymExpr,
     }
 
     // The remaining cases are:
-    //   External GOT: ld $tmp, %got_disp(symbol)($gp)
+    //   Small offset: ld $tmp, %got_disp(symbol)($gp)
     //                >daddiu $tmp, $tmp, offset
-    //                >daddu $rd, $tmp, $rs
-    //   Local GOT:    ld $tmp, %got_disp(symbol)($gp)
-    //                 daddiu $tmp, $tmp, offset($gp)
     //                >daddu $rd, $tmp, $rs
     // The daddiu's marked with a '>' may be omitted if they are redundant. If
     // this happens then the last instruction must use $rd as the result
     // register.
-    //
-    // FIXME: This is just copied from O32 above.  No idea if a single
-    // loExpr is sufficient for N64 as well?
     const MipsMCExpr *GotExpr =
         MipsMCExpr::create(MipsMCExpr::MEK_GOT_DISP, Res.getSymA(), getContext());
     const MCExpr *LoExpr = nullptr;
     if (Res.getConstant() != 0) {
-      // External symbols fully resolve the symbol with just the %got_disp(symbol)
-      // but we must still account for any offset to the symbol for expressions
-      // like symbol+8.
+      // Symbols fully resolve with just the %got_disp(symbol) but we
+      // must still account for any offset to the symbol for
+      // expressions like symbol+8.
       LoExpr = MCConstantExpr::create(Res.getConstant(), getContext());
+
+      // Offsets greater than 16 bits are not yet implemented.
+      if (Res.getConstant() < -0x8000 || Res.getConstant() > 0x7fff) {
+        Error(IDLoc,
+              "pseudo-instruction uses large offset, which is not implemented");
+        return true;
+      }
     }
 
     unsigned TmpReg = DstReg;
