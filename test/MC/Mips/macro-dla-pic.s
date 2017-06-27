@@ -1,4 +1,4 @@
-# RUN: llvm-mc %s -triple=mips64-unknown-linux -show-encoding -mcpu=mips64r6 | \
+# RUN: llvm-mc %s -triple=mips64-unknown-linux -show-encoding -mcpu=mips3 | \
 # RUN:   FileCheck %s
 # N32 should be acceptable too but it currently errors out.
 

@@ -2993,11 +2993,12 @@ bool MipsAsmParser::loadAndAddSymbolAddress(const MCExpr *SymExpr,
     // symbol in the final relocation is external and not modified with a
     // constant then we must use R_MIPS_CALL16 instead of R_MIPS_GOT_DISP.
     if (DstReg == Mips::T9_64 && !UseSrcReg &&
-        Res.getConstant() == 0 && !(Res.getSymA()->getSymbol().isInSection() ||
-        Res.getSymA()->getSymbol().isTemporary() ||
-        (Res.getSymA()->getSymbol().isELF() &&
-        cast<MCSymbolELF>(Res.getSymA()->getSymbol()).getBinding() ==
-        ELF::STB_LOCAL))) {
+        Res.getConstant() == 0 &&
+        !(Res.getSymA()->getSymbol().isInSection() ||
+          Res.getSymA()->getSymbol().isTemporary() ||
+          (Res.getSymA()->getSymbol().isELF() &&
+           cast<MCSymbolELF>(Res.getSymA()->getSymbol()).getBinding() ==
+               ELF::STB_LOCAL))) {
       const MCExpr *CallExpr =
           MipsMCExpr::create(MipsMCExpr::MEK_GOT_CALL, SymExpr, getContext());
       TOut.emitRRX(Mips::LD, DstReg, ABI.GetGlobalPtr(),
@@ -3012,8 +3013,9 @@ bool MipsAsmParser::loadAndAddSymbolAddress(const MCExpr *SymExpr,
     // The daddiu's marked with a '>' may be omitted if they are redundant. If
     // this happens then the last instruction must use $rd as the result
     // register.
-    const MipsMCExpr *GotExpr =
-        MipsMCExpr::create(MipsMCExpr::MEK_GOT_DISP, Res.getSymA(), getContext());
+    const MipsMCExpr *GotExpr = MipsMCExpr::create(MipsMCExpr::MEK_GOT_DISP,
+                                                   Res.getSymA(),
+                                                   getContext());
     const MCExpr *LoExpr = nullptr;
     if (Res.getConstant() != 0) {
       // Symbols fully resolve with just the %got_disp(symbol) but we
@@ -3021,10 +3023,11 @@ bool MipsAsmParser::loadAndAddSymbolAddress(const MCExpr *SymExpr,
       // expressions like symbol+8.
       LoExpr = MCConstantExpr::create(Res.getConstant(), getContext());
 
-      // Offsets greater than 16 bits are not yet implemented.
+      // FIXME: Offsets greater than 16 bits are not yet implemented.
+      // FIXME: The correct range is a 32-bit sign-extended number.
       if (Res.getConstant() < -0x8000 || Res.getConstant() > 0x7fff) {
         Error(IDLoc,
-              "pseudo-instruction uses large offset, which is not implemented");
+              "macro instruction uses large offset, which is not currently supported");
         return true;
       }
     }
