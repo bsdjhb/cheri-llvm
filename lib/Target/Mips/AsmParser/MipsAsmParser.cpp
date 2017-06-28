@@ -3026,8 +3026,8 @@ bool MipsAsmParser::loadAndAddSymbolAddress(const MCExpr *SymExpr,
       // FIXME: Offsets greater than 16 bits are not yet implemented.
       // FIXME: The correct range is a 32-bit sign-extended number.
       if (Res.getConstant() < -0x8000 || Res.getConstant() > 0x7fff) {
-        Error(IDLoc,
-              "macro instruction uses large offset, which is not currently supported");
+        Error(IDLoc, "macro instruction uses large offset, which is not "
+                     "currently supported");
         return true;
       }
     }
