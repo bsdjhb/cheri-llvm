@@ -2992,7 +2992,7 @@ bool MipsAsmParser::loadAndAddSymbolAddress(const MCExpr *SymExpr,
     // The case where the result register is $25 is somewhat special. If the
     // symbol in the final relocation is external and not modified with a
     // constant then we must use R_MIPS_CALL16 instead of R_MIPS_GOT_DISP.
-    if (DstReg == Mips::T9_64 && !UseSrcReg &&
+    if ((DstReg == Mips::T9 || DstReg == Mips::T9_64) && !UseSrcReg &&
         Res.getConstant() == 0 &&
         !(Res.getSymA()->getSymbol().isInSection() ||
           Res.getSymA()->getSymbol().isTemporary() ||
