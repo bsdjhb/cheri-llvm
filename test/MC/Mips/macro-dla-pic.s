@@ -1,6 +1,5 @@
 # RUN: llvm-mc %s -triple=mips64-unknown-linux -show-encoding -mcpu=mips3 | \
 # RUN:   FileCheck %s
-# N32 should be acceptable too but it currently errors out.
 
 .option pic2
 dla $5, symbol        # CHECK: ld $5, %got_disp(symbol)($gp)   # encoding: [0xdf,0x85,A,A]
