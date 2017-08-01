@@ -514,6 +514,10 @@ namespace llvm {
     SDValue lowerEH_DWARF_CFA(SDValue Op, SelectionDAG &DAG) const;
     SDValue lowerFP_TO_SINT(SDValue Op, SelectionDAG &DAG) const;
 
+    /// Return if the TLS model for the global value while respecting
+    /// MIPS64's quirks.
+    TLSModel::Model overrideTLSModel(const GlobalValue * GV) const;
+
     /// isEligibleForTailCallOptimization - Check whether the call is eligible
     /// for tail call optimization.
     virtual bool

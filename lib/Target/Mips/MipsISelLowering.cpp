@@ -70,6 +70,12 @@ SkipGlobalBounds("cheri-no-global-bounds",
   cl::desc("Skip bounds checks on globals"),
   cl::init(false));
 
+static cl::opt<bool>
+OverrideTLS("moverride-tls-exec-for-pic", cl::Hidden,
+            cl::desc("MIPS64: Override the TLS model to use exec based"
+                     "TLS models for mips64 for PIC"),
+            cl::init(false));
+
 static const MCPhysReg Mips64DPRegs[8] = {
   Mips::D12_64, Mips::D13_64, Mips::D14_64, Mips::D15_64,
   Mips::D16_64, Mips::D17_64, Mips::D18_64, Mips::D19_64
@@ -2172,6 +2178,53 @@ SDValue MipsTargetLowering::lowerBlockAddress(SDValue Op,
   return getAddrLocal(N, SDLoc(N), Ty, DAG, ABI.IsN32() || ABI.IsN64());
 }
 
+/// Get the IR-specified TLS model for Var.
+static TLSModel::Model getSelectedTLSModel(const GlobalValue *GV) {
+  switch (GV->getThreadLocalMode()) {
+  case GlobalVariable::NotThreadLocal:
+    llvm_unreachable("getSelectedTLSModel for non-TLS variable");
+    break;
+  case GlobalVariable::GeneralDynamicTLSModel:
+    return TLSModel::GeneralDynamic;
+  case GlobalVariable::LocalDynamicTLSModel:
+    return TLSModel::LocalDynamic;
+  case GlobalVariable::InitialExecTLSModel:
+    return TLSModel::InitialExec;
+  case GlobalVariable::LocalExecTLSModel:
+    return TLSModel::LocalExec;
+  }
+  llvm_unreachable("invalid TLS model");
+}
+
+// MIPS64 traditionally favours pic as the default relocation model, but it
+// will use the static relocation model for TLS if -fpic is not specified.
+// Override the TLS model here, so that we get the 'correct' TLS model.
+//
+// We can't override the choice in general as we don't know if clang was
+// explicitly passed the -fpic option without -moverride-tls-exec-for-pic.
+TLSModel::Model
+MipsTargetLowering::overrideTLSModel(const GlobalValue *GV) const {
+  if (ABI.IsO32() || ((ABI.IsN32() || ABI.IsN64()) && !OverrideTLS))
+    return getTargetMachine().getTLSModel(GV);
+
+  assert(((ABI.IsN32() || ABI.IsN64()) && OverrideTLS) &&
+         "Cannot override TLS model for non MIPS64 ABIs!");
+
+  bool IsLocal = getTargetMachine().shouldAssumeDSOLocal(*GV->getParent(), GV);
+  TLSModel::Model Model;
+  if (IsLocal)
+    Model = TLSModel::LocalExec;
+  else
+    Model = TLSModel::InitialExec;
+
+    // If the user specified a more specific model, use that.
+  TLSModel::Model SelectedModel = getSelectedTLSModel(GV);
+  if (SelectedModel > Model)
+    return SelectedModel;
+
+  return Model;
+}
+
 SDValue MipsTargetLowering::
 lowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const
 {
@@ -2187,7 +2240,7 @@ lowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const
   const GlobalValue *GV = GA->getGlobal();
   EVT PtrVT = getPointerTy(DAG.getDataLayout());
 
-  TLSModel::Model model = getTargetMachine().getTLSModel(GV);
+  TLSModel::Model model = overrideTLSModel(GV);
 
   if (model == TLSModel::GeneralDynamic || model == TLSModel::LocalDynamic) {
     // General Dynamic and Local Dynamic TLS Model.

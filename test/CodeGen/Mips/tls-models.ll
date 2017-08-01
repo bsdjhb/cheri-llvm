@@ -1,5 +1,13 @@
 ; RUN: llc -mtriple=mipsel-- -relocation-model=pic < %s | FileCheck -check-prefix=CHECK-PIC %s
 ; RUN: llc -mtriple=mipsel-- -relocation-model=static < %s | FileCheck -check-prefix=CHECK-NONPIC %s
+; RUN: llc -mtriple=mips64-- -relocation-model=pic -target-abi n64 < %s | FileCheck -check-prefix=CHECK-PIC %s
+; RUN: llc -mtriple=mips64-- -relocation-model=pic -target-abi n32 < %s | FileCheck -check-prefix=CHECK-PIC %s
+; RUN: llc -mtriple=mips64-- -relocation-model=static -target-abi n64 < %s | FileCheck -check-prefix=CHECK-NONPIC %s
+; RUN: llc -mtriple=mips64-- -relocation-model=static -target-abi n32 < %s | FileCheck -check-prefix=CHECK-NONPIC %s
+; RUN: llc -mtriple=mips64-- -relocation-model=pic -target-abi n64 < %s -moverride-tls-exec-for-pic | FileCheck -check-prefix=CHECK-NONPIC %s
+; RUN: llc -mtriple=mips64-- -relocation-model=pic -target-abi n32 < %s -moverride-tls-exec-for-pic | FileCheck -check-prefix=CHECK-NONPIC %s
+
+
 
 @external_gd = external thread_local global i32
 @internal_gd = internal thread_local global i32 42
